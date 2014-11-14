@@ -1,14 +1,25 @@
 package com.RockRadioGh;
 
 import android.app.Activity;
+import android.content.ContentResolver;
+import android.content.ContentValues;
+import android.content.Intent;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
+import android.media.MediaPlayer;
 import android.media.MediaRecorder;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.MediaStore;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -18,34 +29,54 @@ public class Splash extends Activity {
     /**
      * Called when the activity is first created.
      */
-    ImageView play,stop,record,download_img,advert,increase_v,decrease_v;
-    TextView song,download_txt;
-    private static final int RECORDER_SAMPLERATE = 8000;
-    private static final int RECORDER_CHANNELS = AudioFormat.CHANNEL_IN_MONO;
-    private static final int RECORDER_AUDIO_ENCODING = AudioFormat.ENCODING_PCM_16BIT;
-    private AudioRecord recorder = null;
-    private Thread recordingThread = null;
-    private boolean isRecording = false;
+    ImageView play, stop, record, download_img, advert, increase_v, decrease_v;
+    TextView song, download_txt;
+    private static boolean isRecording;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
-        //setButtonHandlers();
         enableButton();
 
-        int bufferSize = AudioRecord.getMinBufferSize(RECORDER_SAMPLERATE,
-                RECORDER_CHANNELS, RECORDER_AUDIO_ENCODING);
     }
+
     private void enableButton() {
-        play = (ImageView)findViewById(R.id.play_img_btn);
-        stop = (ImageView)findViewById(R.id.stop_img_btn);
-        record=(ImageView)findViewById(R.id.record_img_btn);
-        download_img=(ImageView)findViewById(R.id.download_img);
-        increase_v=(ImageView)findViewById(R.id.increase_volume);
-        decrease_v = (ImageView)findViewById(R.id.decrease_volume);
-        advert = (ImageView)findViewById(R.id.add_space);
-        song = (TextView)findViewById(R.id.song_Playing);
-        download_txt = (TextView)findViewById(R.id.download_txt);
+        play = (ImageView) findViewById(R.id.play_img_btn);
+        stop = (ImageView) findViewById(R.id.stop_img_btn);
+        record = (ImageView) findViewById(R.id.record_img_btn);
+        download_img = (ImageView) findViewById(R.id.download_img);
+        increase_v = (ImageView) findViewById(R.id.increase_volume);
+        decrease_v = (ImageView) findViewById(R.id.decrease_volume);
+        advert = (ImageView) findViewById(R.id.add_space);
+        song = (TextView) findViewById(R.id.song_Playing);
+        download_txt = (TextView) findViewById(R.id.download_txt);
+
+        play.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent intent = new Intent(getApplicationContext(),
+
+                        MyMediaPlayerService.class);
+
+                intent.putExtra(MyMediaPlayerService.START_PLAY, true);
+
+                startService(intent);
+
+            }
+        });
+
+        stop.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent intent = new Intent(getApplicationContext(),
+
+                        MyMediaPlayerService.class);
+
+                stopService(intent);
+
+            }
+        });
 
 
         increase_v.setOnClickListener(new View.OnClickListener() {
@@ -56,10 +87,11 @@ public class Splash extends Activity {
         });
 
 
-        if(isRecording == true)
+        if (isRecording == true)
             record.setImageResource(R.drawable.recording);
         else
             record.setImageResource(R.drawable.to_record);
+
         decrease_v.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -67,103 +99,36 @@ public class Splash extends Activity {
             }
         });
 
-        record.setOnClickListener(new View.OnClickListener(){
+        record.setOnClickListener(new View.OnClickListener() {
 
             @Override
             public void onClick(View view) {
-                if(isRecording == true){
-                    stopRecording();
+                if (isRecording == true) {
+                    isRecording = false;
+                    record.setImageResource(R.drawable.to_record);
                 }
-                if (isRecording == false){
-                    startRecording();
+                if (isRecording == false) {
+                    isRecording = true;
+                    record.setImageResource(R.drawable.recording);
+                    //startRecording(getApplicationContext());
                 }
 
             }
         });
     }
 
-
-
-    int BufferElements2Rec = 1024; // want to play 2048 (2K) since 2 bytes we use only 1024
-    int BytesPerElement = 2;
-
-    private void startRecording() {
-
-        recorder = new AudioRecord(MediaRecorder.AudioSource.MIC,
-                RECORDER_SAMPLERATE, RECORDER_CHANNELS,
-                RECORDER_AUDIO_ENCODING, BufferElements2Rec * BytesPerElement);
-
-        recorder.startRecording();
-        record.setImageResource(R.drawable.recording);
-        isRecording = true;
-        recordingThread = new Thread(new Runnable() {
-            public void run() {
-                writeAudioDataToFile();
-            }
-        }, "AudioRecorder Thread");
-        recordingThread.start();
-    }
-
-    //convert short to byte
-    private byte[] short2byte(short[] sData) {
-        int shortArrsize = sData.length;
-        byte[] bytes = new byte[shortArrsize * 2];
-        for (int i = 0; i < shortArrsize; i++) {
-            bytes[i * 2] = (byte) (sData[i] & 0x00FF);
-            bytes[(i * 2) + 1] = (byte) (sData[i] >> 8);
-            sData[i] = 0;
-        }
-        return bytes;
-
-    }
-
-    private void writeAudioDataToFile() {
-        // Write the output audio in byte
-
-        String filePath = "/sdcard/voice8K16bitmono.pcm";
-        short sData[] = new short[BufferElements2Rec];
-
-        FileOutputStream os = null;
-        try {
-            os = new FileOutputStream(filePath);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-
-        while (isRecording) {
-            // gets the voice output from microphone to byte format
-
-            recorder.read(sData, 0, BufferElements2Rec);
-            System.out.println("Short wirting to file" + sData.toString());
-            try {
-                // // writes the data to file from buffer
-                // // stores the voice buffer
-                byte bData[] = short2byte(sData);
-                os.write(bData, 0, BufferElements2Rec * BytesPerElement);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-        try {
-            os.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void stopRecording() {
-        // stops the recording activity
-        if (null != recorder) {
-            record.setImageResource(R.drawable.to_record);
-            isRecording = false;
-            recorder.stop();
-            recorder.release();
-            recorder = null;
-            recordingThread = null;
-        }
-    }
-
-
-
-
+//    private void startStreamingAudio() {
+//        try {
+//            final ProgressBar progressBar = (ProgressBar) findViewById(R.id.progress_bar);
+//            if (audioStreamer != null) {
+//                audioStreamer.interrupt();
+//            }
+//            audioStreamer = new StreamingMediaPlayer(this, textStreamed, playButton, streamButton, progressBar);
+//            audioStreamer.startStreaming("http://www.pocketjourney.com/downloads/pj/tutorials/audio.mp3", 1677, 214);
+//            //streamButton.setEnabled(false);
+//        } catch (IOException e) {
+//            Log.e(getClass().getName(), "Error starting to stream audio.", e);
+//        }
+//
+//    }
 }
