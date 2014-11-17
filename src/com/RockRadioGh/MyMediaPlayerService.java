@@ -3,6 +3,7 @@ package com.RockRadioGh;
 /**
  * Created by IsaacBremang on 11/14/2014.
  */
+import android.annotation.TargetApi;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
@@ -45,7 +46,8 @@ public class MyMediaPlayerService extends Service {
     }
 
 
-
+   
+    @TargetApi(16)
     private void play() {
 
         if (!isPlaying) {
@@ -56,13 +58,23 @@ public class MyMediaPlayerService extends Service {
 
                     Intent.FLAG_ACTIVITY_SINGLE_TOP);
             PendingIntent pi = PendingIntent.getActivity(this, 0, intent, 0);
+
+
+
             Notification notification = new Notification.Builder(getApplicationContext())
                     .setContentTitle("My Music Player")
                     .setContentText("Now Playing: \"Rain\"")
                     .setSmallIcon(R.drawable.ic_launcher)
                     .setContentIntent(pi)
                     .build();
-            mediaPlayer = MediaPlayer.create(this, R.raw.rain); // change this for your file
+           // mediaPlayer = MediaPlayer.create(this, R.drawable.ad_img); // change this for your file
+            try{
+                mediaPlayer = new MediaPlayer();
+                mediaPlayer.setDataSource("http://www.quirksmode.org/html5/videos/big_buck_bunny.mp4");
+                mediaPlayer.prepare();
+            }catch (Exception e){
+                e.printStackTrace();
+            }
             mediaPlayer.setLooping(true); // this will make it loop forever
             mediaPlayer.start();
             startForeground(classID, notification);

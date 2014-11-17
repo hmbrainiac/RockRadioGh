@@ -3,11 +3,9 @@ package com.RockRadioGh;
 import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.ContentValues;
+import android.content.Context;
 import android.content.Intent;
-import android.media.AudioFormat;
-import android.media.AudioRecord;
-import android.media.MediaPlayer;
-import android.media.MediaRecorder;
+import android.media.*;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -31,12 +29,27 @@ public class Splash extends Activity {
      */
     ImageView play, stop, record, download_img, advert, increase_v, decrease_v;
     TextView song, download_txt;
-    private static boolean isRecording;
+    static boolean isRecording=false;
+    static boolean isPlaying = true;
+    private AudioManager myAudioManager;
+    private MediaRecorder myRecorder;
+    private MediaPlayer myPlayer;
+    private String outputFile = null;
+
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
+        myAudioManager = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
+        outputFile = Environment.getExternalStorageDirectory().
+        getAbsolutePath() + "/javacodegeeksRecording.3gpp";
+        myRecorder = new MediaRecorder();
+        myRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+        myRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+        myRecorder.setAudioEncoder(MediaRecorder.OutputFormat.AMR_NB);
+        myRecorder.setOutputFile(outputFile);
+
         enableButton();
 
     }
@@ -48,20 +61,13 @@ public class Splash extends Activity {
         download_img = (ImageView) findViewById(R.id.download_img);
         increase_v = (ImageView) findViewById(R.id.increase_volume);
         decrease_v = (ImageView) findViewById(R.id.decrease_volume);
-        advert = (ImageView) findViewById(R.id.add_space);
+      //  advert = (ImageView) findViewById(R.id.add_space);
         song = (TextView) findViewById(R.id.song_Playing);
-        download_txt = (TextView) findViewById(R.id.download_txt);
+      //  download_txt = (TextView) findViewById(R.id.download_txt);
 
         play.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Intent intent = new Intent(getApplicationContext(),
-
-                        MyMediaPlayerService.class);
-
-                intent.putExtra(MyMediaPlayerService.START_PLAY, true);
-
-                startService(intent);
 
             }
         });
@@ -69,11 +75,6 @@ public class Splash extends Activity {
         stop.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Intent intent = new Intent(getApplicationContext(),
-
-                        MyMediaPlayerService.class);
-
-                stopService(intent);
 
             }
         });
@@ -82,20 +83,29 @@ public class Splash extends Activity {
         increase_v.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                //TODO increase volume
+                // increase volume
+                myAudioManager.adjustVolume(AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI);
             }
         });
 
 
-        if (isRecording == true)
-            record.setImageResource(R.drawable.recording);
-        else
-            record.setImageResource(R.drawable.to_record);
+        if (isPlaying == true){
+            play.setImageResource(R.drawable.playing);
+            stop.setImageResource(R.drawable.to_stop);
+        }
+
+        else{
+            play.setImageResource(R.drawable.to_play);
+            stop.setImageResource(R.drawable.stopped);
+        }
+
 
         decrease_v.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                //TODO decrease volume
+                // decrease volume
+                myAudioManager.adjustVolume(AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI);
+
             }
         });
 
@@ -105,16 +115,86 @@ public class Splash extends Activity {
             public void onClick(View view) {
                 if (isRecording == true) {
                     isRecording = false;
+                    System.out.println("Stopped");
                     record.setImageResource(R.drawable.to_record);
-                }
-                if (isRecording == false) {
+                    stop(view);
+                }else if (isRecording == false && isPlaying == true) {
                     isRecording = true;
+                    System.out.println("Recording");
                     record.setImageResource(R.drawable.recording);
                     //startRecording(getApplicationContext());
+                    start(view);
                 }
 
             }
         });
+
+        play.setOnClickListener(new View.OnClickListener() {
+                                    @Override
+                                    public void onClick(View view) {
+                                        if(isPlaying == true){
+                                            isPlaying = false;
+                                            play.setImageResource(R.drawable.to_play);
+                                            stop.setImageResource(R.drawable.stopped);
+                                            record.setImageResource(R.drawable.to_record);
+                                            //TODO
+                                            //stop recording
+                                            //stop playing
+                                            Intent intent = new Intent(getApplicationContext(),
+
+                                                    MyMediaPlayerService.class);
+
+                                            stopService(intent);
+
+                                        }else if(isPlaying == false){
+                                            isPlaying = true;
+                                            play.setImageResource(R.drawable.playing);
+                                            stop.setImageResource(R.drawable.to_stop);
+                                            //TODO play music
+                                            Intent intent = new Intent(getApplicationContext(),
+
+                                                    MyMediaPlayerService.class);
+
+                                            stopService(intent);
+
+                                             intent = new Intent(getApplicationContext(),
+                                                    MyMediaPlayerService.class);
+                                            intent.putExtra(MyMediaPlayerService.START_PLAY, true);
+                                            startService(intent);
+
+                                        }
+                                    }
+                                }
+        );
+
+        stop.setOnClickListener(new View.OnClickListener() {
+                                    @Override
+                                    public void onClick(View view) {
+                                        if(isPlaying == true){
+                                            isPlaying = false;
+                                            play.setImageResource(R.drawable.to_play);
+                                            stop.setImageResource(R.drawable.stopped);
+                                            record.setImageResource(R.drawable.to_record);
+                                            Intent intent = new Intent(getApplicationContext(),
+
+                                                    MyMediaPlayerService.class);
+
+                                            stopService(intent);
+
+                                            //TODO
+                                            //stop recording
+                                            //stop playing
+                                        }
+                                    }
+                                }
+        );
+        download_img.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                //TODO download operation
+            }
+        });
+
     }
 
 //    private void startStreamingAudio() {
@@ -131,4 +211,41 @@ public class Splash extends Activity {
 //        }
 //
 //    }
+public void start(View view){
+    try {
+        myRecorder.prepare();
+        myRecorder.start();
+    } catch (IllegalStateException e) {
+        // start:it is called before prepare()
+        // prepare: it is called after start() or before setOutputFormat()
+        e.printStackTrace();
+    } catch (IOException e) {
+        // prepare() fails
+        e.printStackTrace();
+    }
+//    text.setText("Recording Point: Recording");
+//    startBtn.setEnabled(false);
+//    stopBtn.setEnabled(true);
+    Toast.makeText(getApplicationContext(), "Start recording...",
+            Toast.LENGTH_SHORT).show();
+}
+    public void stop(View view){
+        try {
+            myRecorder.stop();
+            myRecorder.release();
+            myRecorder  = null;
+//            stopBtn.setEnabled(false);
+//            playBtn.setEnabled(true);
+//            text.setText("Recording Point: Stop recording");
+            Toast.makeText(getApplicationContext(), "Stop recording...",
+                    Toast.LENGTH_SHORT).show();
+        } catch (IllegalStateException e) {
+            //  it is called before start()
+            e.printStackTrace();
+        } catch (RuntimeException e) {
+            // no valid audio/video data has been received
+            e.printStackTrace();
+        }
+    }
+
 }
