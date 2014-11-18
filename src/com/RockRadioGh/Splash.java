@@ -1,25 +1,18 @@
 package com.RockRadioGh;
 
 import android.app.Activity;
-import android.content.ContentResolver;
-import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
-import android.media.*;
-import android.net.Uri;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
+import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.os.Environment;
-import android.provider.MediaStore;
-import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 
 public class Splash extends Activity {
@@ -30,7 +23,7 @@ public class Splash extends Activity {
     ImageView play, stop, record, download_img, advert, increase_v, decrease_v;
     TextView song, download_txt;
     static boolean isRecording=false;
-    static boolean isPlaying = true;
+    static boolean isPlaying = false;
     private AudioManager myAudioManager;
     private MediaRecorder myRecorder;
     private MediaPlayer myPlayer;
@@ -49,9 +42,8 @@ public class Splash extends Activity {
         myRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
         myRecorder.setAudioEncoder(MediaRecorder.OutputFormat.AMR_NB);
         myRecorder.setOutputFile(outputFile);
-
         enableButton();
-
+        play();
     }
 
     private void enableButton() {
@@ -100,6 +92,7 @@ public class Splash extends Activity {
         }
 
 
+
         decrease_v.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -132,37 +125,7 @@ public class Splash extends Activity {
         play.setOnClickListener(new View.OnClickListener() {
                                     @Override
                                     public void onClick(View view) {
-                                        if(isPlaying == true){
-                                            isPlaying = false;
-                                            play.setImageResource(R.drawable.to_play);
-                                            stop.setImageResource(R.drawable.stopped);
-                                            record.setImageResource(R.drawable.to_record);
-                                            //TODO
-                                            //stop recording
-                                            //stop playing
-                                            Intent intent = new Intent(getApplicationContext(),
-
-                                                    MyMediaPlayerService.class);
-
-                                            stopService(intent);
-
-                                        }else if(isPlaying == false){
-                                            isPlaying = true;
-                                            play.setImageResource(R.drawable.playing);
-                                            stop.setImageResource(R.drawable.to_stop);
-                                            //TODO play music
-                                            Intent intent = new Intent(getApplicationContext(),
-
-                                                    MyMediaPlayerService.class);
-
-                                            stopService(intent);
-
-                                             intent = new Intent(getApplicationContext(),
-                                                    MyMediaPlayerService.class);
-                                            intent.putExtra(MyMediaPlayerService.START_PLAY, true);
-                                            startService(intent);
-
-                                        }
+                                      play();
                                     }
                                 }
         );
@@ -247,5 +210,40 @@ public void start(View view){
             e.printStackTrace();
         }
     }
+
+    private  void play(){
+        if(isPlaying == true){
+            isPlaying = false;
+            play.setImageResource(R.drawable.to_play);
+            stop.setImageResource(R.drawable.stopped);
+            record.setImageResource(R.drawable.to_record);
+            //TODO
+            //stop recording
+            //stop playing
+            Intent intent = new Intent(getApplicationContext(),
+
+                    MyMediaPlayerService.class);
+
+            stopService(intent);
+
+        }else if(isPlaying == false){
+            isPlaying = true;
+            play.setImageResource(R.drawable.playing);
+            stop.setImageResource(R.drawable.to_stop);
+            //TODO play music
+            Intent intent = new Intent(getApplicationContext(),
+
+                    MyMediaPlayerService.class);
+
+            stopService(intent);
+
+            intent = new Intent(getApplicationContext(),
+                    MyMediaPlayerService.class);
+            intent.putExtra(MyMediaPlayerService.START_PLAY, true);
+            startService(intent);
+
+        }
+    }
+
 
 }
