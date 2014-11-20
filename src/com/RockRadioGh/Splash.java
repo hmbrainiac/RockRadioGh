@@ -1,11 +1,13 @@
 package com.RockRadioGh;
 
 import android.app.Activity;
-import android.content.Context;
-import android.content.Intent;
+import android.app.AlertDialog;
+import android.app.ProgressDialog;
+import android.content.*;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
+import android.net.ConnectivityManager;
 import android.os.Bundle;
 import android.os.Environment;
 import android.view.View;
@@ -26,8 +28,11 @@ public class Splash extends Activity {
     static boolean isPlaying = false;
     private AudioManager myAudioManager;
     private MediaRecorder myRecorder;
-    private MediaPlayer myPlayer;
+    //private MediaPlayer myPlayer;
+    private boolean isOnline;
     private String outputFile = null;
+    boolean broadcastReceiverIsRegistered;
+    private ProgressDialog pdBuff = null;
 
 
     @Override
@@ -211,39 +216,118 @@ public void start(View view){
         }
     }
 
-    private  void play(){
-        if(isPlaying == true){
-            isPlaying = false;
-            play.setImageResource(R.drawable.to_play);
-            stop.setImageResource(R.drawable.stopped);
-            record.setImageResource(R.drawable.to_record);
-            //TODO
-            //stop recording
-            //stop playing
-            Intent intent = new Intent(getApplicationContext(),
+    private  void play() {
+        checkConnectivity();
+        if (isOnline){
+            if (isPlaying == true) {
+                isPlaying = false;
+                play.setImageResource(R.drawable.to_play);
+                stop.setImageResource(R.drawable.stopped);
+                record.setImageResource(R.drawable.to_record);
+                //TODO
+                //stop recording
+                //stop playing
+                Intent intent = new Intent(getApplicationContext(),
 
-                    MyMediaPlayerService.class);
+                        MyMediaPlayerService.class);
 
-            stopService(intent);
+                stopService(intent);
 
-        }else if(isPlaying == false){
-            isPlaying = true;
-            play.setImageResource(R.drawable.playing);
-            stop.setImageResource(R.drawable.to_stop);
-            //TODO play music
-            Intent intent = new Intent(getApplicationContext(),
+            } else if (isPlaying == false) {
+                isPlaying = true;
+                play.setImageResource(R.drawable.playing);
+                stop.setImageResource(R.drawable.to_stop);
+                //TODO play music
+                Intent intent = new Intent(getApplicationContext(),
 
-                    MyMediaPlayerService.class);
+                        MyMediaPlayerService.class);
 
-            stopService(intent);
+                stopService(intent);
 
-            intent = new Intent(getApplicationContext(),
-                    MyMediaPlayerService.class);
-            intent.putExtra(MyMediaPlayerService.START_PLAY, true);
-            startService(intent);
+                intent = new Intent(getApplicationContext(),
+                        MyMediaPlayerService.class);
+                intent.putExtra(MyMediaPlayerService.START_PLAY, true);
+                startService(intent);
 
+            }
+         }else {
+            AlertDialog alertDialog = new AlertDialog.Builder(this).create();
+            alertDialog.setTitle("Network Not Connected ...");
+            alertDialog.setMessage("Please connect to a network and try again");
+            alertDialog.setButton("Ok", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialogInterface, int i) {
+
+                }
+            });
+            alertDialog.setIcon(R.drawable.ic_launcher);
+            alertDialog.show();
         }
     }
 
+    private void checkConnectivity(){
+        ConnectivityManager cm = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
+
+        if(cm.getNetworkInfo(ConnectivityManager.TYPE_MOBILE).isConnectedOrConnecting()
+                ||
+                cm.getNetworkInfo(ConnectivityManager.TYPE_WIFI).isConnectedOrConnecting()){
+            isOnline = true;
+        }else {
+            isOnline = false;
+        }
+    }
+
+    private void showPD(Intent bufferIntent){
+        String bufferValue = bufferIntent.getStringExtra("buffering");
+        int bufferIntValue = Integer.parseInt(bufferValue);
+
+        switch(bufferIntValue){
+            case 0:
+                if(pdBuff != null){
+                    pdBuff.dismiss();
+                }
+                break;
+            case 1:
+                BufferDialogue();
+                break;
+            case 2:
+                isPlaying = false;
+                play.setImageResource(R.drawable.to_play);
+                stop.setImageResource(R.drawable.stopped);
+                break;
+        }
+    }
+
+    private void BufferDialogue(){
+        pdBuff = ProgressDialog.show(Splash.this,"Buffering ..."," Contacting Our Servers ...", true);
+    }
+
+    private BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            showPD(intent);
+        }
+    };
+
+
+
+
+    public void onResume() {
+       // activity.onResume();
+        if(!broadcastReceiverIsRegistered){
+            registerReceiver(broadcastReceiver,new IntentFilter(MyMediaPlayerService.BROADCAST_BUFFER));
+            broadcastReceiverIsRegistered = true;
+        }
+        super.onResume();
+    }
+
+    public void onPause() {
+       // activity.onPause();
+        if(broadcastReceiverIsRegistered){
+            unregisterReceiver(broadcastReceiver);
+            broadcastReceiverIsRegistered = false;
+        }
+        super.onPause();
+    }
 
 }

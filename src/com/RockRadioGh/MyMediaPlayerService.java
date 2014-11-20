@@ -4,6 +4,10 @@ package com.RockRadioGh;
  * Created by IsaacBremang on 11/14/2014.
  */
 import android.annotation.TargetApi;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.IntentFilter;
+import android.drm.DrmManagerClient;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationCompat.Builder;
 import android.app.Notification;
@@ -12,21 +16,40 @@ import android.app.Service;
 import android.content.Intent;
 import android.media.MediaPlayer;
 import android.os.IBinder;
+import android.telephony.PhoneStateListener;
+import android.telephony.TelephonyManager;
+import android.widget.Toast;
 
-public class MyMediaPlayerService extends Service {
+public class MyMediaPlayerService extends Service implements MediaPlayer.OnCompletionListener,MediaPlayer.OnPreparedListener,MediaPlayer.OnErrorListener, MediaPlayer.OnInfoListener,MediaPlayer.OnBufferingUpdateListener {
 
     private MediaPlayer mediaPlayer = null;
-
+    private boolean isPausedinCall = false;
+    private PhoneStateListener phoneStateListener;
+    private TelephonyManager telephonyManager;
     private boolean      isPlaying = false;
 
 
-    private static int classID = 579; // just a number
+    private static int classID = 1; // just a number
+    private int headSetSwitch = 1;
 
-
-
+    public static final String BROADCAST_BUFFER = "com.RockRadioGh.BroadCastBUFFER";
     public static String START_PLAY = "START_PLAY";
-    @Override
+    Intent bufferIntent;
 
+    @Override
+    public void onCreate(){
+        bufferIntent = new Intent(BROADCAST_BUFFER);
+        mediaPlayer  = new MediaPlayer();
+        mediaPlayer.setOnBufferingUpdateListener(this);
+        mediaPlayer.setOnErrorListener(this);
+        mediaPlayer.setOnInfoListener(this);
+        mediaPlayer.setOnPreparedListener(this);
+        mediaPlayer.reset();
+        registerReceiver(headsetReceiver, new IntentFilter(Intent.ACTION_HEADSET_PLUG));
+    }
+
+
+    @Override
     public IBinder onBind(Intent intent) {
 
         return null;
@@ -37,18 +60,78 @@ public class MyMediaPlayerService extends Service {
 
     public int onStartCommand(Intent intent, int flags, int startId) {
 
+        telephonyManager = (TelephonyManager)getSystemService(Context.TELEPHONY_SERVICE);
+        phoneStateListener = new PhoneStateListener(){
+
+            @Override
+            public void onCallStateChanged(int state, String incomingNumber){
+                switch (state){
+                    case  TelephonyManager.CALL_STATE_OFFHOOK:
+                    case TelephonyManager.CALL_STATE_RINGING:
+                        if(mediaPlayer != null){
+                            //mediaPlayer.pause();
+                            stop();
+                            isPausedinCall = true;
+                        }
+                        break;
+                    case TelephonyManager.CALL_STATE_IDLE:
+                        if(mediaPlayer != null){
+                            play();
+                            isPausedinCall = false;
+                        }
+                        break;
+
+
+                }
+
+            }
+        };
+        telephonyManager.listen(phoneStateListener,PhoneStateListener.LISTEN_CALL_STATE);
+
+
         if (intent.getBooleanExtra(START_PLAY, false)) {
-
             play();
-
         }
-
         return Service.START_STICKY;
 
     }
 
+    private BroadcastReceiver headsetReceiver = new BroadcastReceiver() {
+        private boolean headSetConnected = false;
 
-   
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if(intent.hasExtra("state")){
+                if( headSetConnected && (intent.getIntExtra("states",0) == 0)){
+                    headSetConnected = false;
+                    headSetSwitch = 0;
+                }
+            }else if (!headSetConnected && (intent.getIntExtra("states",0) == 1)){
+                headSetConnected = true;
+                headSetSwitch = 1;
+            }
+
+
+            switch (headSetSwitch){
+                case (0):
+                    headSetDisconnected();
+                    break;
+
+                case (1):
+                    break;
+            }
+
+        }
+
+
+
+    };
+
+
+   private void headSetDisconnected(){
+       stop();
+       stopSelf();
+   }
 
     private void play() {
 
@@ -68,16 +151,20 @@ public class MyMediaPlayerService extends Service {
                     .setSmallIcon(R.drawable.ic_launcher)
                     .setContentIntent(pi)
                     .build();
-           // mediaPlayer = MediaPlayer.create(this, R.drawable.ad_img); // change this for your file
+
+            mediaPlayer.reset();
             try{
-                mediaPlayer = new MediaPlayer();
-                mediaPlayer.setDataSource("http://s10.voscast.com:7738/;stream1416328486194/1");
-                mediaPlayer.prepare();
+                mediaPlayer.setDataSource("http://s10.voscast.com:7738/;stream1416485207845/1");
+
+
+                mediaPlayer.prepareAsync();
+                sendBufferingBroadcast();
+               // mediaPlayer.prepare();
             }catch (Exception e){
                 e.printStackTrace();
             }
-            mediaPlayer.setLooping(true); // this will make it loop forever
-            mediaPlayer.start();
+          //  mediaPlayer.setLooping(true); // this will make it loop forever
+
             final Notification notification = mBuilder.build();
             startForeground(classID, notification);
 
@@ -91,6 +178,12 @@ public class MyMediaPlayerService extends Service {
 
         stop();
 
+        if(phoneStateListener != null){
+            telephonyManager.listen(phoneStateListener,PhoneStateListener.LISTEN_NONE);
+        }
+        resetButtonBroadcast();
+        unregisterReceiver(headsetReceiver);
+        stopSelf();
     }
     private void stop() {
 
@@ -103,7 +196,6 @@ public class MyMediaPlayerService extends Service {
                 mediaPlayer.release();
 
                 mediaPlayer = null;
-
             }
 
             stopForeground(true);
@@ -112,9 +204,46 @@ public class MyMediaPlayerService extends Service {
 
     }
 
+    @Override
+    public void onBufferingUpdate(MediaPlayer mediaPlayer, int i) {
+        Toast.makeText(getApplicationContext(),"Buffering",Toast.LENGTH_LONG).show();
+    }
+
+    @Override
+    public void onCompletion(MediaPlayer mediaPlayer) {
+
+    }
+
+    @Override
+    public boolean onError(MediaPlayer mediaPlayer, int i, int i1) {
+        return false;
+    }
+
+    @Override
+    public boolean onInfo(MediaPlayer mediaPlayer, int i, int i1) {
+        return false;
+    }
+
+    @Override
+    public void onPrepared(MediaPlayer mediaPlayer) {
+        mediaPlayer.start();
+        sendBufferCompleteBroadcast();
+    }
+
     /****
      * Put the playing inside a thread to prevent the whole screen from crushing on you
      */
+    public void sendBufferingBroadcast(){
+        bufferIntent.putExtra("buffering","1");
+        sendBroadcast(bufferIntent);
+    }
 
-
+    public void resetButtonBroadcast(){
+        bufferIntent.putExtra("buffering","2");
+        sendBroadcast(bufferIntent);
+    }
+    public void sendBufferCompleteBroadcast(){
+        bufferIntent.putExtra("buffering","0");
+        sendBroadcast(bufferIntent);
+    }
 }
