@@ -3,13 +3,13 @@ package com.RockRadioGh;
 /**
  * Created by IsaacBremang on 11/14/2014.
  */
-import android.annotation.TargetApi;
+
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.IntentFilter;
-import android.drm.DrmManagerClient;
+
 import android.support.v4.app.NotificationCompat;
-import android.support.v4.app.NotificationCompat.Builder;
+
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
@@ -19,14 +19,28 @@ import android.os.IBinder;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import android.widget.Toast;
+import org.apache.http.HttpResponse;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+
+import java.util.List;
 
 public class MyMediaPlayerService extends Service implements MediaPlayer.OnCompletionListener,MediaPlayer.OnPreparedListener,MediaPlayer.OnErrorListener, MediaPlayer.OnInfoListener,MediaPlayer.OnBufferingUpdateListener {
 
-    private MediaPlayer mediaPlayer = null;
+    private MediaPlayer mediaPlayer = new MediaPlayer();
     private boolean isPausedinCall = false;
+    private static String nowPlaying = "";
     private PhoneStateListener phoneStateListener;
     private TelephonyManager telephonyManager;
     private boolean      isPlaying = false;
+
+    HttpPost httppost;
+    StringBuffer buffer;
+    HttpResponse response;
+    HttpClient httpclient;
+    List<NameValuePair> nameValuePairs;
+
 
 
     private static int classID = 1; // just a number
@@ -35,11 +49,14 @@ public class MyMediaPlayerService extends Service implements MediaPlayer.OnCompl
     public static final String BROADCAST_BUFFER = "com.RockRadioGh.BroadCastBUFFER";
     public static String START_PLAY = "START_PLAY";
     Intent bufferIntent;
+    public static final String  Playing_String = "com.RockRadioGh.PlayingString";
+    Intent playingIntent;
 
     @Override
     public void onCreate(){
         bufferIntent = new Intent(BROADCAST_BUFFER);
-        mediaPlayer  = new MediaPlayer();
+        playingIntent = new Intent(Playing_String);
+        //mediaPlayer  =
         mediaPlayer.setOnBufferingUpdateListener(this);
         mediaPlayer.setOnErrorListener(this);
         mediaPlayer.setOnInfoListener(this);
@@ -206,7 +223,10 @@ public class MyMediaPlayerService extends Service implements MediaPlayer.OnCompl
 
     @Override
     public void onBufferingUpdate(MediaPlayer mediaPlayer, int i) {
-        Toast.makeText(getApplicationContext(),"Buffering",Toast.LENGTH_LONG).show();
+        //Toast.makeText(getApplicationContext(),"Buffering",Toast.LENGTH_LONG).show();
+
+        if(!mediaPlayer.isPlaying())
+            mediaPlayer.start();
     }
 
     @Override
@@ -221,7 +241,9 @@ public class MyMediaPlayerService extends Service implements MediaPlayer.OnCompl
 
     @Override
     public boolean onInfo(MediaPlayer mediaPlayer, int i, int i1) {
+
         return false;
+
     }
 
     @Override
@@ -246,4 +268,12 @@ public class MyMediaPlayerService extends Service implements MediaPlayer.OnCompl
         bufferIntent.putExtra("buffering","0");
         sendBroadcast(bufferIntent);
     }
+    public  void sendNowPlayingBroadcast(String playing,String download){
+        playingIntent.putExtra("nowPlaying",playing);
+        playingIntent.putExtra("download",download);
+        sendBroadcast(playingIntent);
+
+    }
+
+
 }

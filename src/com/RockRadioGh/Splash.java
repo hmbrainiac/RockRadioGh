@@ -45,10 +45,10 @@ public class Splash extends Activity {
         myRecorder = new MediaRecorder();
         myRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
         myRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-        myRecorder.setAudioEncoder(MediaRecorder.OutputFormat.AMR_NB);
+        myRecorder.setAudioEncoder(MediaRecorder.OutputFormat.MPEG_4);
         myRecorder.setOutputFile(outputFile);
         enableButton();
-        play();
+
     }
 
     private void enableButton() {
@@ -162,23 +162,10 @@ public class Splash extends Activity {
                 //TODO download operation
             }
         });
-
+        play();
     }
 
-//    private void startStreamingAudio() {
-//        try {
-//            final ProgressBar progressBar = (ProgressBar) findViewById(R.id.progress_bar);
-//            if (audioStreamer != null) {
-//                audioStreamer.interrupt();
-//            }
-//            audioStreamer = new StreamingMediaPlayer(this, textStreamed, playButton, streamButton, progressBar);
-//            audioStreamer.startStreaming("http://www.pocketjourney.com/downloads/pj/tutorials/audio.mp3", 1677, 214);
-//            //streamButton.setEnabled(false);
-//        } catch (IOException e) {
-//            Log.e(getClass().getName(), "Error starting to stream audio.", e);
-//        }
-//
-//    }
+
 public void start(View view){
     try {
         myRecorder.prepare();
@@ -218,51 +205,43 @@ public void start(View view){
 
     private  void play() {
         checkConnectivity();
-        if (isOnline){
-            if (isPlaying == true) {
-                isPlaying = false;
-                play.setImageResource(R.drawable.to_play);
-                stop.setImageResource(R.drawable.stopped);
-                record.setImageResource(R.drawable.to_record);
-                //TODO
-                //stop recording
-                //stop playing
-                Intent intent = new Intent(getApplicationContext(),
+            if(isOnline){
+                if (isPlaying == true) {
+                    isPlaying = false;
+                    play.setImageResource(R.drawable.to_play);
+                    stop.setImageResource(R.drawable.stopped);
+                    record.setImageResource(R.drawable.to_record);
+                    //TODO
+                    //stop recording
+                    //stop playing
+                    Intent intent = new Intent(getApplicationContext(),
 
-                        MyMediaPlayerService.class);
+                            MyMediaPlayerService.class);
 
-                stopService(intent);
+                    stopService(intent);
 
-            } else if (isPlaying == false) {
-                isPlaying = true;
-                play.setImageResource(R.drawable.playing);
-                stop.setImageResource(R.drawable.to_stop);
-                //TODO play music
-                Intent intent = new Intent(getApplicationContext(),
+                } else if (isPlaying == false) {
+                    isPlaying = true;
+                    play.setImageResource(R.drawable.playing);
+                    stop.setImageResource(R.drawable.to_stop);
+                    //TODO play music
+                    Intent intent = new Intent(getApplicationContext(),
 
-                        MyMediaPlayerService.class);
+                            MyMediaPlayerService.class);
 
-                stopService(intent);
+                    stopService(intent);
 
-                intent = new Intent(getApplicationContext(),
-                        MyMediaPlayerService.class);
-                intent.putExtra(MyMediaPlayerService.START_PLAY, true);
-                startService(intent);
-
-            }
-         }else {
-            AlertDialog alertDialog = new AlertDialog.Builder(this).create();
-            alertDialog.setTitle("Network Not Connected ...");
-            alertDialog.setMessage("Please connect to a network and try again");
-            alertDialog.setButton("Ok", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialogInterface, int i) {
+                    intent = new Intent(getApplicationContext(),
+                            MyMediaPlayerService.class);
+                    intent.putExtra(MyMediaPlayerService.START_PLAY, true);
+                    startService(intent);
 
                 }
-            });
-            alertDialog.setIcon(R.drawable.ic_launcher);
-            alertDialog.show();
-        }
+            }else {
+                Toast.makeText(getApplicationContext(),"No internet connection detected",Toast.LENGTH_LONG).show();
+            }
+
+
     }
 
     private void checkConnectivity(){
@@ -300,6 +279,7 @@ public void start(View view){
 
     private void BufferDialogue(){
         pdBuff = ProgressDialog.show(Splash.this,"Buffering ..."," Contacting Our Servers ...", true);
+
     }
 
     private BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
